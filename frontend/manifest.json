@@ -1,0 +1,19 @@
+{
+  "name": "Fulus - Keuangan Organisasi",
+  "short_name": "Fulus",
+  "description": "Aplikasi pencatatan kas multi-organisasi",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f0f2f5",
+  "theme_color": "#ff7a1a",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

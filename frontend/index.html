@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#f0f2f5">
+<title>Fulus - Keuangan Organisasi</title>
+<link rel="manifest" href="manifest.json">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body data-theme="light">
+
+<!-- LOGIN -->
+<div id="view-login" class="login-wrap">
+  <div class="neu-card login-card">
+    <div class="logo-badge">Rp</div>
+    <h1>Fulus</h1>
+    <p class="muted">Kas multi-organisasi</p>
+    <form id="login-form">
+      <label class="neu-label" for="login-email">Email</label>
+      <input class="neu-input" id="login-email" type="email" placeholder="nama@email.com" required autocomplete="email">
+      <button class="neu-btn primary" type="submit" id="login-btn">Masuk</button>
+      <p class="err" id="login-err"></p>
+    </form>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="view-app" class="hidden">
+  <header class="topbar">
+    <div class="brand"><span class="brand-dot"></span> Fulus</div>
+    <div class="top-actions">
+      <button class="neu-icon" id="theme-toggle" title="Mode gelap">◐</button>
+      <div class="user-chip" id="user-chip"></div>
+      <button class="neu-icon" id="logout-btn" title="Keluar">⎋</button>
+    </div>
+  </header>
+
+  <main class="main">
+
+    <!-- DASHBOARD -->
+    <section id="page-dashboard" class="page">
+      <div class="page-head">
+        <h2>Dashboard</h2>
+        <div class="period-pick">
+          <input type="date" id="dash-dari" class="neu-input small">
+          <input type="date" id="dash-sampai" class="neu-input small">
+          <button class="neu-btn small" id="dash-refresh">Terapkan</button>
+        </div>
+      </div>
+      <div class="stat-row">
+        <div class="neu-card stat"><span class="stat-label">Saldo Semua</span><span class="stat-val" id="st-saldo">Rp 0</span></div>
+        <div class="neu-card stat up"><span class="stat-label">Masuk</span><span class="stat-val" id="st-masuk">Rp 0</span></div>
+        <div class="neu-card stat down"><span class="stat-label">Keluar</span><span class="stat-val" id="st-keluar">Rp 0</span></div>
+      </div>
+      <h3>Per Organisasi</h3>
+      <div id="org-cards" class="org-grid"></div>
+      <h3>Kategori (periode)</h3>
+      <div id="cat-bars" class="cat-bars"></div>
+      <h3>Transaksi Terakhir</h3>
+      <div id="recent-list" class="tx-list"></div>
+    </section>
+
+    <!-- TRANSAKSI -->
+    <section id="page-transaksi" class="page hidden">
+      <div class="page-head">
+        <h2>Transaksi</h2>
+        <button class="neu-btn primary small" id="btn-add-tx">+ Tambah</button>
+      </div>
+      <div class="filter-row">
+        <input class="neu-input small" id="f-cari" placeholder="Cari referensi/keterangan">
+        <select class="neu-input small" id="f-org"><option value="">Semua organisasi</option></select>
+        <select class="neu-input small" id="f-tipe">
+          <option value="">Semua tipe</option><option value="masuk">Masuk</option><option value="keluar">Keluar</option>
+        </select>
+        <input type="date" class="neu-input small" id="f-dari">
+        <input type="date" class="neu-input small" id="f-sampai">
+      </div>
+      <div id="tx-list" class="tx-list"></div>
+      <div class="pager">
+        <button class="neu-btn small" id="pg-prev">‹</button>
+        <span id="pg-info" class="muted"></span>
+        <button class="neu-btn small" id="pg-next">›</button>
+      </div>
+    </section>
+
+    <!-- LAPORAN -->
+    <section id="page-laporan" class="page hidden">
+      <div class="page-head">
+        <h2>Laporan</h2>
+        <button class="neu-btn small" id="btn-export">⤓ Export CSV</button>
+      </div>
+      <div class="period-pick">
+        <input type="date" id="lap-dari" class="neu-input small">
+        <input type="date" id="lap-sampai" class="neu-input small">
+        <select class="neu-input small" id="lap-org"><option value="">Semua organisasi</option></select>
+        <button class="neu-btn small primary" id="lap-refresh">Terapkan</button>
+      </div>
+      <div class="stat-row">
+        <div class="neu-card stat up"><span class="stat-label">Total Masuk</span><span class="stat-val" id="lp-masuk">Rp 0</span></div>
+        <div class="neu-card stat down"><span class="stat-label">Total Keluar</span><span class="stat-val" id="lp-keluar">Rp 0</span></div>
+        <div class="neu-card stat"><span class="stat-label">Saldo</span><span class="stat-val" id="lp-saldo">Rp 0</span></div>
+      </div>
+      <h3>Ringkasan Harian</h3>
+      <div id="lap-harian" class="table-wrap"></div>
+      <h3>Per Organisasi</h3>
+      <div id="lap-org" class="table-wrap"></div>
+      <h3>Per Metode</h3>
+      <div id="lap-metode" class="table-wrap"></div>
+    </section>
+
+    <!-- PENGATURAN -->
+    <section id="page-pengaturan" class="page hidden">
+      <div class="page-head"><h2>Pengaturan</h2></div>
+      <div id="admin-only">
+        <h3>Pengguna</h3>
+        <div class="form-row">
+          <input class="neu-input small" id="u-email" type="email" placeholder="email">
+          <input class="neu-input small" id="u-nama" placeholder="Nama">
+          <select class="neu-input small" id="u-role">
+            <option value="viewer">Viewer</option><option value="admin">Admin</option>
+          </select>
+          <input class="neu-input small" id="u-orgs" placeholder="org_access (opsional)">
+          <button class="neu-btn small primary" id="u-save">Simpan</button>
+        </div>
+        <div id="user-list" class="chip-list"></div>
+
+        <h3>Organisasi</h3>
+        <div class="form-row">
+          <input class="neu-input small" id="o-nama" placeholder="Nama organisasi">
+          <input class="neu-input small" id="o-desc" placeholder="Deskripsi">
+          <button class="neu-btn small primary" id="o-save">Tambah</button>
+        </div>
+
+        <h3>Kategori</h3>
+        <div class="form-row">
+          <input class="neu-input small" id="c-nama" placeholder="Nama kategori">
+          <select class="neu-input small" id="c-tipe">
+            <option value="masuk">Masuk</option><option value="keluar">Keluar</option><option value="semua">Semua</option>
+          </select>
+          <button class="neu-btn small primary" id="c-save">Tambah</button>
+        </div>
+      </div>
+      <div id="viewer-note" class="neu-card hidden">Anda login sebagai <b>viewer</b>. Halaman pengaturan hanya untuk admin.</div>
+    </section>
+
+  </main>
+
+  <nav class="bottom-nav">
+    <button class="nav-btn active" data-page="dashboard"><span>▦</span>Dashboard</button>
+    <button class="nav-btn" data-page="transaksi"><span>⇄</span>Transaksi</button>
+    <button class="nav-btn" data-page="laporan"><span>▤</span>Laporan</button>
+    <button class="nav-btn" data-page="pengaturan"><span>⚙</span>Atur</button>
+  </nav>
+</div>
+
+<!-- MODAL TRANSAKSI -->
+<div id="modal-tx" class="modal hidden">
+  <div class="neu-card modal-card">
+    <div class="modal-head"><h3 id="tx-modal-title">Tambah Transaksi</h3><button class="neu-icon" id="tx-close">✕</button></div>
+    <form id="tx-form">
+      <input type="hidden" id="tx-id">
+      <div class="seg">
+        <label class="seg-opt"><input type="radio" name="tx-tipe" value="masuk" checked><span>Masuk</span></label>
+        <label class="seg-opt"><input type="radio" name="tx-tipe" value="keluar"><span>Keluar</span></label>
+      </div>
+      <label class="neu-label">Organisasi</label>
+      <select class="neu-input" id="tx-org" required></select>
+      <label class="neu-label">Jumlah (Rp)</label>
+      <input class="neu-input" id="tx-jumlah" type="number" min="1" step="1" placeholder="0" required>
+      <label class="neu-label">Tanggal</label>
+      <input class="neu-input" id="tx-tanggal" type="date" required>
+      <label class="neu-label">Kategori</label>
+      <select class="neu-input" id="tx-kategori"></select>
+      <label class="neu-label">Metode</label>
+      <select class="neu-input" id="tx-metode">
+        <option value="tunai">Tunai</option><option value="transfer">Transfer</option>
+        <option value="qris">QRIS</option><option value="lainnya">Lainnya</option>
+      </select>
+      <label class="neu-label">Keterangan</label>
+      <textarea class="neu-input" id="tx-ket" rows="2" placeholder="Opsional"></textarea>
+      <p class="muted small-txt">Referensi dibuat otomatis.</p>
+      <p class="err" id="tx-err"></p>
+      <button class="neu-btn primary" type="submit">Simpan</button>
+    </form>
+  </div>
+</div>
+
+<div id="toast" class="toast hidden"></div>
+
+<script src="js/api.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
