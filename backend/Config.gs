@@ -33,6 +33,7 @@ const SH = {
   users: 'Users',
   orgs: 'Organizations',
   cats: 'Categories',
+  units: 'Units',
   tx: 'Transactions',
   audit: 'AuditLog'
 };
@@ -41,7 +42,8 @@ const HEADERS = {
   Users: ['id', 'email', 'nama', 'role', 'org_access', 'aktif', 'created_at'],
   Organizations: ['id', 'nama', 'deskripsi', 'mata_uang', 'urutan', 'aktif', 'created_at'],
   Categories: ['id', 'org_id', 'nama', 'tipe', 'aktif', 'created_at'],
-  Transactions: ['id', 'org_id', 'tipe', 'jumlah', 'tanggal', 'kategori_id', 'keterangan', 'metode', 'referensi', 'status', 'created_by', 'created_at', 'updated_at'],
+  Units: ['id', 'org_id', 'nama', 'aktif', 'created_at'],
+  Transactions: ['id', 'org_id', 'unit_id', 'tipe', 'jumlah', 'tanggal', 'kategori_id', 'keterangan', 'metode', 'referensi', 'status', 'created_by', 'created_at', 'updated_at'],
   AuditLog: ['id', 'waktu', 'email', 'aksi', 'detail']
 };
 
@@ -61,6 +63,11 @@ const DEFAULT_CATS = [
   { nama: 'Kegiatan', tipe: 'keluar' },
   { nama: 'Lainnya', tipe: 'semua' }
 ];
+
+// Unit bawaan: nama organisasi -> daftar unit
+const DEFAULT_UNITS = {
+  UPZ: ['Tingkat desa', 'Kecamatan', 'Kabupaten']
+};
 
 function getSecret_() {
   const props = PropertiesService.getScriptProperties();
@@ -93,10 +100,20 @@ function setup(spreadsheetId) {
   Object.keys(HEADERS).forEach(function (name) {
     let sh = ss.getSheetByName(name);
     if (!sh) sh = ss.insertSheet(name);
-    const row = HEADERS[name];
+    const want = HEADERS[name];
     if (sh.getLastRow() === 0) {
-      sh.getRange(1, 1, 1, row.length).setValues([row]).setFontWeight('bold');
+      sh.getRange(1, 1, 1, want.length).setValues([want]).setFontWeight('bold');
       sh.setFrozenRows(1);
+      return;
+    }
+    // migrasi: tambahkan kolom baru di akhir bila header lama belum lengkap
+    const have = sh.getRange(1, 1, 1, Math.max(sh.getLastColumn(), 1)).getValues()[0].map(function (v) { return String(v); });
+    let tambah = [];
+    want.forEach(function (h) { if (have.indexOf(h) === -1) tambah.push(h); });
+    if (tambah.length) {
+      const start = have.findIndex(function (v) { return v === ''; });
+      const col = (start === -1 ? have.length : start) + 1;
+      sh.getRange(1, col, 1, tambah.length).setValues([tambah]).setFontWeight('bold');
     }
   });
 
@@ -120,6 +137,22 @@ function setup(spreadsheetId) {
     });
   }
 
+  // seed unit bawaan (hanya jika sheet Units masih kosong)
+  const units = readAll_(SH.units);
+  if (units.length === 0) {
+    const orgsNow = readAll_(SH.orgs);
+    Object.keys(DEFAULT_UNITS).forEach(function (orgNama) {
+      const org = orgsNow.find(function (o) { return String(o.nama) === orgNama; });
+      if (!org) return;
+      DEFAULT_UNITS[orgNama].forEach(function (u) {
+        appendRow_(SH.units, {
+          id: genId_(), org_id: org.id, nama: u,
+          aktif: true, created_at: nowISO_()
+        });
+      });
+    });
+  }
+
   if (ss.getSheetByName('Sheet1') && ss.getSheetByName('Sheet1').getLastRow() === 0) {
     ss.deleteSheet(ss.getSheetByName('Sheet1'));
   }
@@ -130,7 +163,8 @@ function setup(spreadsheetId) {
       spreadsheet_id: ss.getId(),
       spreadsheet_url: ss.getUrl(),
       orgs: readAll_(SH.orgs).length,
-      cats: readAll_(SH.cats).length
+      cats: readAll_(SH.cats).length,
+      units: readAll_(SH.units).length
     }
   };
 }

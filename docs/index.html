@@ -70,6 +70,7 @@
       <div class="filter-row">
         <input class="neu-input small" id="f-cari" placeholder="Cari referensi/keterangan">
         <select class="neu-input small" id="f-org"><option value="">Semua organisasi</option></select>
+        <select class="neu-input small" id="f-unit"><option value="">Semua unit</option></select>
         <select class="neu-input small" id="f-tipe">
           <option value="">Semua tipe</option><option value="masuk">Masuk</option><option value="keluar">Keluar</option>
         </select>
@@ -94,6 +95,7 @@
         <input type="date" id="lap-dari" class="neu-input small">
         <input type="date" id="lap-sampai" class="neu-input small">
         <select class="neu-input small" id="lap-org"><option value="">Semua organisasi</option></select>
+        <select class="neu-input small" id="lap-unit"><option value="">Semua unit</option></select>
         <button class="neu-btn small primary" id="lap-refresh">Terapkan</button>
       </div>
       <div class="stat-row">
@@ -104,7 +106,9 @@
       <h3>Ringkasan Harian</h3>
       <div id="lap-harian" class="table-wrap"></div>
       <h3>Per Organisasi</h3>
-      <div id="lap-org" class="table-wrap"></div>
+      <div id="lap-org-tbl" class="table-wrap"></div>
+      <h3>Per Unit</h3>
+      <div id="lap-unit-tbl" class="table-wrap"></div>
       <h3>Per Metode</h3>
       <div id="lap-metode" class="table-wrap"></div>
     </section>
@@ -145,6 +149,15 @@
           <button class="neu-btn small hidden" id="c-cancel">Batal edit</button>
         </div>
         <div id="cat-list" class="chip-list"></div>
+
+        <h3>Unit <span class="muted">per organisasi</span></h3>
+        <div class="form-row">
+          <select class="neu-input small" id="un-org"></select>
+          <input class="neu-input small" id="un-nama" placeholder="Nama unit (mis. Kecamatan)">
+          <button class="neu-btn small primary" id="un-save">Tambah</button>
+          <button class="neu-btn small hidden" id="un-cancel">Batal edit</button>
+        </div>
+        <div id="unit-list" class="chip-list"></div>
       </div>
       <div id="viewer-note" class="neu-card hidden">Anda login sebagai <b>viewer</b>. Halaman pengaturan hanya untuk admin.</div>
     </section>
@@ -171,6 +184,8 @@
       </div>
       <label class="neu-label">Organisasi</label>
       <select class="neu-input" id="tx-org" required></select>
+      <label class="neu-label">Unit <span class="muted small-txt">(opsional)</span></label>
+      <select class="neu-input" id="tx-unit"><option value="">Tanpa unit</option></select>
       <label class="neu-label">Jumlah (Rp)</label>
       <input class="neu-input" id="tx-jumlah" type="number" min="1" step="1" placeholder="0" required>
       <label class="neu-label">Tanggal</label>

@@ -121,6 +121,7 @@
     try {
       state.orgs = await API.get('organizations');
       state.cats = await API.get('categories');
+      state.units = await API.get('units');
       fillOrgSelects();
     } catch (e) { toast(e.message, true); }
   }
@@ -131,6 +132,43 @@
       const el = $(sel);
       const cur = el.value;
       el.innerHTML = (sel === '#tx-org' ? '' : '<option value="">Semua organisasi</option>') + opts;
+      if (cur) el.value = cur;
+    });
+    const unOrg = $('#un-org');
+    if (unOrg) {
+      const curUn = unOrg.value;
+      unOrg.innerHTML = '<option value="">Pilih organisasi</option>' + opts;
+      if (curUn) unOrg.value = curUn;
+    }
+    fillUnitFilter();
+    fillUnitSelect($('#tx-org').value, '');
+  }
+
+  // dropdown unit pada form transaksi: hanya unit milik organisasi terpilih
+  function fillUnitSelect(orgId, selected) {
+    const sel = $('#tx-unit');
+    if (!sel) return;
+    const list = (state.units || []).filter(function (u) {
+      return orgId && String(u.org_id) === String(orgId);
+    });
+    sel.innerHTML = '<option value="">Tanpa unit</option>' + list.map(function (u) {
+      return '<option value="' + u.id + '">' + esc(u.nama) + '</option>';
+    }).join('');
+    if (selected) sel.value = selected;
+  }
+
+  // dropdown filter unit (halaman transaksi & laporan)
+  function fillUnitFilter() {
+    ['#f-unit', '#lap-unit'].forEach(function (id) {
+      const el = $(id);
+      if (!el) return;
+      const cur = el.value;
+      const orgSel = $(id === '#f-unit' ? '#f-org' : '#lap-org');
+      const orgId = orgSel ? orgSel.value : '';
+      const list = (state.units || []).filter(function (u) { return !orgId || String(u.org_id) === String(orgId); });
+      el.innerHTML = '<option value="">Semua unit</option>' + list.map(function (u) {
+        return '<option value="' + u.id + '">' + esc(u.nama) + '</option>';
+      }).join('');
       if (cur) el.value = cur;
     });
   }
@@ -212,7 +250,7 @@
         '<div class="tx-ico ' + (isIn ? 'in' : 'out') + '">' + (isIn ? '↓' : '↑') + '</div>' +
         '<div class="tx-body">' +
         '<div class="tx-title">' + esc(t.keterangan || t.kategori_nama || (isIn ? 'Pemasukan' : 'Pengeluaran')) + '</div>' +
-        '<div class="tx-sub">' + esc(t.org_nama) + ' · ' + esc(t.referensi) + ' · ' + fmtTgl(t.tanggal) + (t.metode ? ' · ' + esc(t.metode) : '') + '</div>' +
+        '<div class="tx-sub">' + esc(t.org_nama) + (t.unit_nama ? ' · ' + esc(t.unit_nama) : '') + ' · ' + esc(t.referensi) + ' · ' + fmtTgl(t.tanggal) + (t.metode ? ' · ' + esc(t.metode) : '') + '</div>' +
         '</div>' +
         '<div class="tx-amt ' + (isIn ? 'in' : 'out') + '">' + amt + '</div>' + acts +
         '</div>';
@@ -224,13 +262,28 @@
     }
   }
 
-  ['#f-cari', '#f-org', '#f-tipe', '#f-dari', '#f-sampai'].forEach(function (sel) {
+  ['#f-cari', '#f-org', '#f-unit', '#f-tipe', '#f-dari', '#f-sampai'].forEach(function (sel) {
     const el = $(sel);
+    if (!el) return;
     el.addEventListener(el.tagName === 'INPUT' && el.type !== 'date' ? 'input' : 'change', debounce(function () {
       state.txPage = 1;
       loadTransactions();
     }, 400));
   });
+
+  // organisasi berubah di filter -> daftar unit ikut menyesuaikan
+  $('#f-org').addEventListener('change', function () {
+    fillUnitFilter();
+    $('#f-unit').value = '';
+  });
+  $('#lap-org').addEventListener('change', function () {
+    fillUnitFilter();
+    $('#lap-unit').value = '';
+    loadReports();
+  });
+
+  // organisasi berubah di form transaksi -> daftar unit ikut berganti
+  $('#tx-org').addEventListener('change', function () { fillUnitSelect($('#tx-org').value, ''); });
 
   function debounce(fn, ms) {
     let t;
@@ -240,7 +293,7 @@
   async function loadTransactions() {
     try {
       const d = await API.get('transactions', {
-        q: $('#f-cari').value, org_id: $('#f-org').value, tipe: $('#f-tipe').value,
+        q: $('#f-cari').value, org_id: $('#f-org').value, unit_id: $('#f-unit').value, tipe: $('#f-tipe').value,
         dari: $('#f-dari').value, sampai: $('#f-sampai').value,
         page: state.txPage, size: state.txSize
       });
@@ -276,6 +329,7 @@
         $('#tx-id').value = t.id;
         $$('input[name="tx-tipe"]').forEach(function (r) { r.checked = r.value === t.tipe; });
         $('#tx-org').value = t.org_id;
+        fillUnitSelect(t.org_id, t.unit_id || '');
         $('#tx-jumlah').value = t.jumlah;
         $('#tx-tanggal').value = t.tanggal ? new Date(t.tanggal).toISOString().slice(0, 10) : today();
         fillCatSelect(t.tipe, t.kategori_id);
@@ -287,6 +341,7 @@
       $('#tx-id').value = '';
       $$('input[name="tx-tipe"]').forEach(function (r) { r.checked = r.value === 'masuk'; });
       $('#tx-org').value = state.orgs.length ? state.orgs[0].id : '';
+      fillUnitSelect($('#tx-org').value, '');
       $('#tx-jumlah').value = '';
       $('#tx-tanggal').value = today();
       fillCatSelect('masuk', '');
@@ -305,6 +360,7 @@
     const payload = {
       id: $('#tx-id').value || undefined,
       org_id: $('#tx-org').value,
+      unit_id: $('#tx-unit').value,
       tipe: $$('input[name="tx-tipe"]').find(function (r) { return r.checked; }).value,
       jumlah: Number($('#tx-jumlah').value),
       tanggal: $('#tx-tanggal').value,
@@ -334,7 +390,10 @@
   $('#lap-refresh').addEventListener('click', loadReports);
   $('#btn-export').addEventListener('click', async function () {
     try {
-      const d = await API.get('export', { dari: $('#lap-dari').value, sampai: $('#lap-sampai').value, org_id: $('#lap-org').value });
+      const d = await API.get('export', {
+        dari: $('#lap-dari').value, sampai: $('#lap-sampai').value,
+        org_id: $('#lap-org').value, unit_id: $('#lap-unit').value
+      });
       const blob = new Blob(['\ufeff' + d.csv], { type: 'text/csv;charset=utf-8;' });
       const a = document.createElement('a');
       a.href = URL.createObjectURL(blob);
@@ -347,7 +406,10 @@
 
   async function loadReports() {
     try {
-      const d = await API.get('reports', { dari: $('#lap-dari').value, sampai: $('#lap-sampai').value, org_id: $('#lap-org').value });
+      const d = await API.get('reports', {
+        dari: $('#lap-dari').value, sampai: $('#lap-sampai').value,
+        org_id: $('#lap-org').value, unit_id: $('#lap-unit').value
+      });
       $('#lp-masuk').textContent = rupiah(d.total.masuk);
       $('#lp-keluar').textContent = rupiah(d.total.keluar);
       $('#lp-saldo').textContent = rupiah(d.total.saldo);
@@ -359,11 +421,19 @@
         })
       );
 
-      $('#lap-org').innerHTML = tableHtml(
+      $('#lap-org-tbl').innerHTML = tableHtml(
         ['Organisasi', 'Masuk', 'Keluar', 'Saldo', 'Jml'],
         d.per_org.map(function (o) {
           return [esc(o.nama), numCell(o.masuk), numCell(-o.keluar), numCell(o.saldo), String(o.jumlah)];
         })
+      );
+
+      $('#lap-unit-tbl').innerHTML = tableHtml(
+        ['Unit', 'Organisasi', 'Masuk', 'Keluar', 'Saldo', 'Jml'],
+        d.per_unit.map(function (u) {
+          return [esc(u.nama), esc(u.organisasi), numCell(u.masuk), numCell(-u.keluar), numCell(u.saldo), String(u.jumlah)];
+        }),
+        [0, 1]
       );
 
       $('#lap-metode').innerHTML = tableHtml(
@@ -379,14 +449,17 @@
     return { html: '<span class="' + cls + '">' + rupiah(v) + '</span>' };
   }
 
-  function tableHtml(head, rows) {
+  // textCols = daftar index kolom yang isinya teks (rata kiri)
+  function tableHtml(head, rows, textCols) {
     if (!rows.length) return '<div class="empty">Tidak ada data</div>';
+    textCols = textCols || [0];
+    const isText = function (i) { return textCols.indexOf(i) !== -1; };
     return '<table><thead><tr>' + head.map(function (h, i) {
-      return '<th' + (i > 0 ? ' class="num"' : '') + '>' + h + '</th>';
+      return '<th' + (isText(i) ? '' : ' class="num"') + '>' + h + '</th>';
     }).join('') + '</tr></thead><tbody>' + rows.map(function (r) {
       return '<tr>' + r.map(function (c, i) {
         const txt = (c && c.html) ? c.html : c;
-        return '<td' + (i > 0 ? ' class="num"' : '') + '>' + txt + '</td>';
+        return '<td' + (isText(i) ? '' : ' class="num"') + '>' + txt + '</td>';
       }).join('') + '</tr>';
     }).join('') + '</tbody></table>';
   }
@@ -416,6 +489,7 @@
 
   let editOrgId = null;
   let editCatId = null;
+  let editUnitId = null;
 
   async function loadOrgCatLists() {
     if (state.user.role !== 'admin') return;
@@ -442,6 +516,31 @@
                : '<button data-delcat="' + c.id + '" title="Hapus">🗑</button>') +
           '</div>';
       }).join('') || '<span class="muted">Belum ada</span>';
+
+      const units = await API.get('units.all');
+      const orgName = function (id) {
+        const o = orgs.find(function (x) { return String(x.id) === String(id); });
+        return o ? o.nama : '?';
+      };
+      // kelompokkan unit per organisasi agar rapi
+      const byOrg = {};
+      units.forEach(function (u) {
+        const k = String(u.org_id);
+        if (!byOrg[k]) byOrg[k] = [];
+        byOrg[k].push(u);
+      });
+      $('#unit-list').innerHTML = Object.keys(byOrg).map(function (k) {
+        return '<div class="unit-group"><div class="unit-org">' + esc(orgName(k)) + '</div>' +
+          byOrg[k].map(function (u) {
+            const off = String(u.aktif).toUpperCase() === 'FALSE';
+            return '<div class="chip' + (off ? ' off' : '') + '">' +
+              '<b>' + esc(u.nama) + '</b> ' + (off ? '(nonaktif) ' : '') +
+              '<button data-editunit="' + u.id + '" title="Edit">✎</button>' +
+              (off ? '<button data-onunit="' + u.id + '" title="Aktifkan">↺</button>'
+                   : '<button data-delunit="' + u.id + '" title="Hapus">🗑</button>') +
+              '</div>';
+          }).join('') + '</div>';
+      }).join('') || '<span class="muted">Belum ada unit</span>';
 
       bindOrgCatBtns();
     } catch (e) { /* daftar sekunder, abaikan */ }
@@ -518,6 +617,41 @@
         } catch (e) { toast(e.message, true); }
       });
     });
+
+    $$('[data-editunit]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        API.get('units.all').then(function (list) {
+          const u = list.find(function (x) { return String(x.id) === b.dataset.editunit; });
+          if (!u) return;
+          editUnitId = u.id;
+          $('#un-org').value = u.org_id;
+          $('#un-nama').value = u.nama;
+          $('#un-save').textContent = 'Simpan';
+          $('#un-cancel').classList.remove('hidden');
+          $('#un-nama').focus();
+        }).catch(function (e) { toast(e.message, true); });
+      });
+    });
+
+    $$('[data-delunit]').forEach(function (b) {
+      b.addEventListener('click', async function () {
+        if (!confirm('Hapus unit ini? Jika sudah dipakai transaksi, ia hanya dinonaktifkan.')) return;
+        try {
+          const r = await API.post('units.delete', { id: b.dataset.delunit });
+          toast(r.mode === 'deleted' ? 'Dihapus' : 'Dinonaktifkan (' + r.transaksi + ' transaksi)');
+          loadOrgCatLists(); loadMeta();
+        } catch (e) { toast(e.message, true); }
+      });
+    });
+
+    $$('[data-onunit]').forEach(function (b) {
+      b.addEventListener('click', async function () {
+        try {
+          await API.post('units.save', { id: b.dataset.onunit, _reactivate: true });
+          toast('Aktifkan'); loadOrgCatLists(); loadMeta();
+        } catch (e) { toast(e.message, true); }
+      });
+    });
   }
 
   $('#o-cancel').addEventListener('click', function () {
@@ -532,6 +666,27 @@
     $('#c-nama').value = '';
     $('#c-save').textContent = 'Tambah';
     $('#c-cancel').classList.add('hidden');
+  });
+
+  $('#un-cancel').addEventListener('click', function () {
+    editUnitId = null;
+    $('#un-org').value = '';
+    $('#un-nama').value = '';
+    $('#un-save').textContent = 'Tambah';
+    $('#un-cancel').classList.add('hidden');
+  });
+
+  $('#un-save').addEventListener('click', async function () {
+    try {
+      const payload = { nama: $('#un-nama').value.trim(), org_id: $('#un-org').value };
+      if (editUnitId) payload.id = editUnitId;
+      if (!payload.org_id) throw new Error('Pilih organisasi dulu');
+      if (!payload.nama) throw new Error('Nama unit wajib diisi');
+      await API.post('units.save', payload);
+      toast(editUnitId ? 'Unit diperbarui' : 'Unit ditambahkan');
+      $('#un-cancel').click();
+      loadMeta(); loadOrgCatLists();
+    } catch (e) { toast(e.message, true); }
   });
 
   $('#u-save').addEventListener('click', async function () {

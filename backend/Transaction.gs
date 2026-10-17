@@ -24,6 +24,7 @@ function listTransactions_(user, params) {
   let rows = readAll_(SH.tx).filter(function (t) { return canAccessOrg_(user, t.org_id); });
 
   if (params.org_id) rows = rows.filter(function (t) { return String(t.org_id) === String(params.org_id); });
+  if (params.unit_id) rows = rows.filter(function (t) { return String(t.unit_id) === String(params.unit_id); });
   if (params.tipe) rows = rows.filter(function (t) { return String(t.tipe) === String(params.tipe); });
   if (params.kategori_id) rows = rows.filter(function (t) { return String(t.kategori_id) === String(params.kategori_id); });
   if (params.q) {
@@ -55,14 +56,17 @@ function listTransactions_(user, params) {
 function decorate_(rows) {
   const orgs = readAll_(SH.orgs);
   const cats = readAll_(SH.cats);
+  const units = readAll_(SH.units);
   const users = readAll_(SH.users);
   return rows.map(function (t) {
     const o = orgs.find(function (x) { return String(x.id) === String(t.org_id); });
     const c = cats.find(function (x) { return String(x.id) === String(t.kategori_id); });
+    const un = units.find(function (x) { return String(x.id) === String(t.unit_id); });
     const u = users.find(function (x) { return String(x.id) === String(t.created_by); });
     return Object.assign({}, t, {
       org_nama: o ? o.nama : t.org_id,
       kategori_nama: c ? c.nama : '',
+      unit_nama: un ? un.nama : '',
       created_nama: u ? u.nama : (t.created_by || '')
     });
   });
@@ -89,8 +93,16 @@ function validateTx_(p) {
   const jml = Number(p.jumlah);
   if (!isFinite(jml) || jml <= 0) throw new Error('Jumlah harus > 0');
   if (!p.tanggal) throw new Error('Tanggal wajib diisi');
+  const unit_id = p.unit_id || '';
+  if (unit_id) {
+    // unit harus benar-benar milik organisasi yang dipilih
+    const unit = findById_(SH.units, unit_id);
+    if (!unit) throw new Error('Unit tidak ditemukan');
+    if (String(unit.org_id) !== String(p.org_id)) throw new Error('Unit tidak termasuk organisasi tersebut');
+  }
   return {
     org_id: String(p.org_id),
+    unit_id: unit_id,
     tipe: p.tipe,
     jumlah: jml,
     tanggal: p.tanggal,

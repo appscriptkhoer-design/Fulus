@@ -230,6 +230,9 @@ tbody tr:last-child td { border-bottom: none; }
 .chip.off { opacity: .5; text-decoration: line-through; }
 .chip.off b { text-decoration: none; }
 .chip .muted { font-size: 11px; text-decoration: none; display: inline; }
+.unit-group { width: 100%; margin-bottom: 4px; }
+.unit-org { font-size: 12px; font-weight: 800; color: var(--orange); text-transform: uppercase; letter-spacing: .5px; margin: 10px 0 6px; }
+.unit-group .chip { display: inline-flex; margin: 0 8px 8px 0; }
 
 /* ---------- MODAL ---------- */
 .modal {

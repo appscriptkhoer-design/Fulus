@@ -1,4 +1,4 @@
-const API_URL = 'https://script.google.com/macros/s/AKfycbwM2w20WQMoaP0dBVYJMBYmBgnz4SGufZUOBOceytq6GRaLY3Gx7mLnI4tlRx8HvZADYg/exec';
+const API_URL = 'https://script.google.com/macros/s/AKfycbz-p8RfF0kSYEXfCq2bW0tpLKsW148H_i34aCTY4Ezc_LfGZgIjBPcbCd7x5kZ9dPnYIQ/exec';
 
 const API = (function () {
   function token() { return localStorage.getItem('fulus_token') || ''; }

@@ -87,7 +87,8 @@ function reports_(user, params) {
   const r = periodRange_(params);
   const all = readAll_(SH.tx).filter(function (t) {
     return canAccessOrg_(user, t.org_id) && inRange_(t, r) &&
-      (!params.org_id || String(t.org_id) === String(params.org_id));
+      (!params.org_id || String(t.org_id) === String(params.org_id)) &&
+      (!params.unit_id || String(t.unit_id) === String(params.unit_id));
   });
 
   const harian = {};
@@ -118,6 +119,24 @@ function reports_(user, params) {
     if (t.tipe === 'masuk') metode[m].masuk += j; else metode[m].keluar += j;
   });
 
+  // ringkasan per unit (hanya transaksi yang punya unit)
+  const unitsAll = readAll_(SH.units);
+  const perUnit = {};
+  all.filter(function (t) { return t.unit_id; }).forEach(function (t) {
+    const key = String(t.unit_id);
+    if (!perUnit[key]) {
+      const u = unitsAll.find(function (x) { return String(x.id) === key; });
+      const o = u ? orgs.find(function (x) { return String(x.id) === String(u.org_id); }) : null;
+      perUnit[key] = {
+        unit_id: key, nama: u ? u.nama : key,
+        organisasi: o ? o.nama : '', masuk: 0, keluar: 0, jumlah: 0
+      };
+    }
+    const j = Number(t.jumlah) || 0;
+    if (t.tipe === 'masuk') perUnit[key].masuk += j; else perUnit[key].keluar += j;
+    perUnit[key].jumlah++;
+  });
+
   return {
     ok: true,
     data: {
@@ -125,6 +144,11 @@ function reports_(user, params) {
       total: sumBy_(all),
       harian: harianArr,
       per_org: perOrg,
+      per_unit: Object.keys(perUnit).map(function (k) {
+        const x = perUnit[k];
+        x.saldo = x.masuk - x.keluar;
+        return x;
+      }),
       metode: Object.keys(metode).map(function (k) { return metode[k]; }),
       transaksi: decorate_(all.sort(function (a, b) { return new Date(b.tanggal) - new Date(a.tanggal); }))
     }
@@ -134,11 +158,11 @@ function reports_(user, params) {
 function exportCsv_(user, params) {
   const res = reports_(user, params);
   const rows = res.data.transaksi;
-  const head = ['referensi', 'tanggal', 'organisasi', 'tipe', 'kategori', 'jumlah', 'metode', 'keterangan', 'oleh'];
+  const head = ['referensi', 'tanggal', 'organisasi', 'unit', 'tipe', 'kategori', 'jumlah', 'metode', 'keterangan', 'oleh'];
   const lines = [head.join(',')];
   rows.forEach(function (t) {
     lines.push([
-      t.referensi, fmtDate_(new Date(t.tanggal)), csvEsc_(t.org_nama), t.tipe,
+      t.referensi, fmtDate_(new Date(t.tanggal)), csvEsc_(t.org_nama), csvEsc_(t.unit_nama), t.tipe,
       csvEsc_(t.kategori_nama), t.jumlah, t.metode, csvEsc_(t.keterangan), csvEsc_(t.created_nama)
     ].join(','));
   });
@@ -242,4 +266,54 @@ function deleteCat_(by, p) {
   deleteRow_(SH.cats, p.id);
   audit_(by.email, 'cat.delete', cat.nama);
   return { ok: true, data: { mode: 'deleted', aktif: true, transaksi: 0, nama: cat.nama } };
+}
+
+/* ===== UNIT (sub organisasi, contoh UPZ: Tingkat desa/Kecamatan/Kabupaten) ===== */
+
+function listUnits_(user, params) {
+  let units = readAll_(SH.units).filter(function (u) {
+    if (String(u.aktif).toUpperCase() === 'FALSE') return false;
+    return canAccessOrg_(user, u.org_id);
+  });
+  if (params.org_id) {
+    units = units.filter(function (u) { return String(u.org_id) === String(params.org_id); });
+  }
+  return { ok: true, data: units };
+}
+
+function saveUnit_(by, p) {
+  if (p._reactivate) {
+    const cur = findById_(SH.units, p.id);
+    if (!cur) throw new Error('Unit tidak ditemukan');
+    updateRow_(SH.units, p.id, { aktif: true });
+    audit_(by.email, 'unit.enable', cur.nama);
+    return { ok: true, data: findById_(SH.units, p.id) };
+  }
+  if (!p.nama) throw new Error('Nama unit wajib diisi');
+  if (!p.org_id) throw new Error('Organisasi wajib dipilih');
+  const org = findById_(SH.orgs, p.org_id);
+  if (!org) throw new Error('Organisasi tidak ditemukan');
+  if (p.id) {
+    updateRow_(SH.units, p.id, { nama: p.nama, org_id: p.org_id, aktif: p.aktif === false ? false : true });
+    audit_(by.email, 'unit.update', p.nama);
+    return { ok: true, data: findById_(SH.units, p.id) };
+  }
+  const rec = { id: genId_(), org_id: p.org_id, nama: p.nama, aktif: true, created_at: nowISO_() };
+  withLock_(function () { appendRow_(SH.units, rec); });
+  audit_(by.email, 'unit.create', rec.nama + ' @' + org.nama);
+  return { ok: true, data: rec };
+}
+
+function deleteUnit_(by, p) {
+  const unit = findById_(SH.units, p.id);
+  if (!unit) throw new Error('Unit tidak ditemukan');
+  const dipakai = readAll_(SH.tx).filter(function (t) { return String(t.unit_id) === String(p.id); }).length;
+  if (dipakai > 0) {
+    updateRow_(SH.units, p.id, { aktif: false });
+    audit_(by.email, 'unit.disable', unit.nama + ' (' + dipakai + ' trx)');
+    return { ok: true, data: { mode: 'disabled', aktif: false, transaksi: dipakai, nama: unit.nama } };
+  }
+  deleteRow_(SH.units, p.id);
+  audit_(by.email, 'unit.delete', unit.nama);
+  return { ok: true, data: { mode: 'deleted', aktif: true, transaksi: 0, nama: unit.nama } };
 }

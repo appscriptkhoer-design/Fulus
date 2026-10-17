@@ -72,6 +72,29 @@ function dispatch_(action, params, user, payload) {
         return { ok: true, data: readAll_(SH.cats) };
       }
 
+      case 'units': {
+        if (!user) return { ok: false, error: 'Belum login' };
+        return listUnits_(user, params);
+      }
+
+      case 'units.all': {
+        if (!user) return { ok: false, error: 'Belum login' };
+        requireAdmin_(user);
+        return { ok: true, data: readAll_(SH.units) };
+      }
+
+      case 'units.save': {
+        if (!user) return { ok: false, error: 'Belum login' };
+        requireAdmin_(user);
+        return saveUnit_(user, payload);
+      }
+
+      case 'units.delete': {
+        if (!user) return { ok: false, error: 'Belum login' };
+        requireAdmin_(user);
+        return deleteUnit_(user, payload);
+      }
+
       case 'categories':
         if (!user) return { ok: false, error: 'Belum login' };
         return listCategories_(user, params);
