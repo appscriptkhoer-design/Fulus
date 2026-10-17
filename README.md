@@ -16,7 +16,7 @@ fulus/
 │   ├── Auth.gs        # login by email + token
 │   ├── Transaction.gs # CRUD transaksi
 │   └── Report.gs      # dashboard, laporan, export, admin
-└── frontend/          # GitHub Pages
+└── docs/             # GitHub Pages (frontend)
     ├── index.html
     ├── manifest.json
     ├── sw.js
@@ -38,7 +38,7 @@ clasp push
 clasp deploy --description "Fulus API v1"
 ```
 
-Setelah deploy, salin URL `/exec` (bukan `/dev`) ke `frontend/js/api.js` → `API_URL`.
+Setelah deploy, salin URL `/exec` (bukan `/dev`) ke `docs/js/api.js` → `API_URL`.
 
 Set juga **Execute as: Me** dan **Who has access: Anyone** di deployment.
 
@@ -58,24 +58,25 @@ Fungsi juga tersedia:
 
 Sheet `Users`, `Organizations`, `Categories`, `Transactions`, `AuditLog` dibuat otomatis + seed 4 organisasi & kategori default.
 
-### Tambah Pengguna Pertama (Admin)
+### Pengguna Pertama (Admin)
 
-Buka spreadsheet → sheet `Users` → tambah baris:
+Sudah dijalankan saat inisialisasi — akun admin: **asep@gmail.com** (role `admin`, `org_access=*`).
 
-| id | email | nama | role | org_access | aktif |
-|----|-------|------|------|------------|-------|
-| (acak) | admin@email.com | Admin | admin | * | TRUE |
+Untuk menambah user baru di kemudian hari: login sebagai admin → menu **Atur** → isi email/nama/role → **Simpan**. Atau lewat API (sekali saja saat belum ada user): `?action=bootstrap&email=...&nama=...`.
 
-`org_access` untuk admin global diisi `*`. Untuk viewer, isi daftar `org_id` dipisah koma (kosong = semua).
+Role:
+- `admin` — kelola semua organisasi + user (global).
+- `viewer` — hanya baca sesuai `org_access` (daftar `org_id` dipisah koma; kosong = semua).
 
 ## 2. Deploy Frontend (GitHub Pages)
 
+Sudah aktif: **https://appscriptkhoer-design.github.io/Fulus/** (source: `main`, folder `/docs`).
+
 ```bash
-git remote add origin https://github.com/appscriptkhoer-design/Fulus.git
 git push -u origin main
 ```
 
-Di GitHub → Settings → Pages → Source: `main` branch, folder `/frontend`.
+Catatan: GitHub Pages hanya menerima folder `/` atau `/docs`, jadi frontend ada di `docs/`.
 
 ## 3. Fitur
 
