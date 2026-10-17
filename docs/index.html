@@ -129,8 +129,11 @@
         <div class="form-row">
           <input class="neu-input small" id="o-nama" placeholder="Nama organisasi">
           <input class="neu-input small" id="o-desc" placeholder="Deskripsi">
+          <input class="neu-input small" id="o-urutan" type="number" min="1" placeholder="Urutan">
           <button class="neu-btn small primary" id="o-save">Tambah</button>
+          <button class="neu-btn small hidden" id="o-cancel">Batal edit</button>
         </div>
+        <div id="org-list" class="chip-list"></div>
 
         <h3>Kategori</h3>
         <div class="form-row">
@@ -139,7 +142,9 @@
             <option value="masuk">Masuk</option><option value="keluar">Keluar</option><option value="semua">Semua</option>
           </select>
           <button class="neu-btn small primary" id="c-save">Tambah</button>
+          <button class="neu-btn small hidden" id="c-cancel">Batal edit</button>
         </div>
+        <div id="cat-list" class="chip-list"></div>
       </div>
       <div id="viewer-note" class="neu-card hidden">Anda login sebagai <b>viewer</b>. Halaman pengaturan hanya untuk admin.</div>
     </section>

@@ -60,6 +60,18 @@ function dispatch_(action, params, user, payload) {
         if (!user) return { ok: false, error: 'Belum login' };
         return listOrganizations_(user);
 
+      case 'organizations.all': {
+        if (!user) return { ok: false, error: 'Belum login' };
+        requireAdmin_(user);
+        return { ok: true, data: readAll_(SH.orgs).sort(function (a, b) { return (a.urutan || 0) - (b.urutan || 0); }) };
+      }
+
+      case 'categories.all': {
+        if (!user) return { ok: false, error: 'Belum login' };
+        requireAdmin_(user);
+        return { ok: true, data: readAll_(SH.cats) };
+      }
+
       case 'categories':
         if (!user) return { ok: false, error: 'Belum login' };
         return listCategories_(user, params);
@@ -130,6 +142,18 @@ function dispatch_(action, params, user, payload) {
         if (!user) return { ok: false, error: 'Belum login' };
         requireAdmin_(user);
         return saveCat_(user, payload);
+      }
+
+      case 'orgs.delete': {
+        if (!user) return { ok: false, error: 'Belum login' };
+        requireAdmin_(user);
+        return deleteOrg_(user, payload);
+      }
+
+      case 'cats.delete': {
+        if (!user) return { ok: false, error: 'Belum login' };
+        requireAdmin_(user);
+        return deleteCat_(user, payload);
       }
 
       default:

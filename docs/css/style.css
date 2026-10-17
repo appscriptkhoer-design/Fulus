@@ -227,6 +227,9 @@ tbody tr:last-child td { border-bottom: none; }
 }
 .chip b { color: var(--orange); }
 .chip button { border: none; background: none; color: var(--down); cursor: pointer; font-size: 15px; }
+.chip.off { opacity: .5; text-decoration: line-through; }
+.chip.off b { text-decoration: none; }
+.chip .muted { font-size: 11px; text-decoration: none; display: inline; }
 
 /* ---------- MODAL ---------- */
 .modal {

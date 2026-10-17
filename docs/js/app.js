@@ -411,7 +411,128 @@
         });
       });
     } catch (e) { toast(e.message, true); }
+    loadOrgCatLists();
   }
+
+  let editOrgId = null;
+  let editCatId = null;
+
+  async function loadOrgCatLists() {
+    if (state.user.role !== 'admin') return;
+    try {
+      const orgs = await API.get('organizations.all');
+      $('#org-list').innerHTML = orgs.map(function (o) {
+        const off = String(o.aktif).toUpperCase() === 'FALSE';
+        return '<div class="chip' + (off ? ' off' : '') + '">' +
+          '<b>' + esc(o.nama) + '</b> ' + (off ? '(nonaktif) ' : '') +
+          '<button data-editorg="' + o.id + '" title="Edit">✎</button>' +
+          (off ? '<button data-onorg="' + o.id + '" title="Aktifkan">↺</button>'
+               : '<button data-delorg="' + o.id + '" title="Hapus">🗑</button>') +
+          '</div>';
+      }).join('') || '<span class="muted">Belum ada</span>';
+
+      const cats = await API.get('categories.all');
+      $('#cat-list').innerHTML = cats.map(function (c) {
+        const off = String(c.aktif).toUpperCase() === 'FALSE';
+        return '<div class="chip' + (off ? ' off' : '') + '">' +
+          '<b>' + esc(c.nama) + '</b> <span class="muted">' + esc(c.tipe) +
+          (c.org_id && c.org_id !== 'GLOBAL' ? ' · org' : '') + '</span> ' +
+          '<button data-editcat="' + c.id + '" title="Edit">✎</button>' +
+          (off ? '<button data-oncat="' + c.id + '" title="Aktifkan">↺</button>'
+               : '<button data-delcat="' + c.id + '" title="Hapus">🗑</button>') +
+          '</div>';
+      }).join('') || '<span class="muted">Belum ada</span>';
+
+      bindOrgCatBtns();
+    } catch (e) { /* daftar sekunder, abaikan */ }
+  }
+
+  function bindOrgCatBtns() {
+    $$('[data-editorg]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        API.get('organizations.all').then(function (list) {
+          const org = list.find(function (x) { return String(x.id) === b.dataset.editorg; });
+          if (!org) return;
+          editOrgId = org.id;
+          $('#o-nama').value = org.nama;
+          $('#o-desc').value = org.deskripsi || '';
+          $('#o-urutan').value = org.urutan || '';
+          $('#o-save').textContent = 'Simpan';
+          $('#o-cancel').classList.remove('hidden');
+          $('#o-nama').focus();
+        }).catch(function (e) { toast(e.message, true); });
+      });
+    });
+
+    $$('[data-delorg]').forEach(function (b) {
+      b.addEventListener('click', async function () {
+        if (!confirm('Hapus organisasi ini? Jika sudah ada transaksi, ia hanya dinonaktifkan.')) return;
+        try {
+          const r = await API.post('orgs.delete', { id: b.dataset.delorg });
+          toast(r.mode === 'deleted' ? 'Dihapus' : 'Dinonaktifkan (' + r.transaksi + ' transaksi)');
+          loadOrgCatLists(); loadMeta(); loadDashboard();
+        } catch (e) { toast(e.message, true); }
+      });
+    });
+
+    $$('[data-onorg]').forEach(function (b) {
+      b.addEventListener('click', async function () {
+        try {
+          await API.post('orgs.save', { id: b.dataset.onorg, nama: '', _reactivate: true });
+          toast('Aktifkan'); loadOrgCatLists(); loadMeta();
+        } catch (e) { toast(e.message, true); }
+      });
+    });
+
+    $$('[data-editcat]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        API.get('categories.all').then(function (list) {
+          const c = list.find(function (x) { return String(x.id) === b.dataset.editcat; });
+          if (!c) return;
+          editCatId = c.id;
+          $('#c-nama').value = c.nama;
+          $('#c-tipe').value = c.tipe;
+          $('#c-save').textContent = 'Simpan';
+          $('#c-cancel').classList.remove('hidden');
+          $('#c-nama').focus();
+        }).catch(function (e) { toast(e.message, true); });
+      });
+    });
+
+    $$('[data-delcat]').forEach(function (b) {
+      b.addEventListener('click', async function () {
+        if (!confirm('Hapus kategori ini?')) return;
+        try {
+          const r = await API.post('cats.delete', { id: b.dataset.delcat });
+          toast(r.mode === 'deleted' ? 'Dihapus' : 'Dinonaktifkan (' + r.transaksi + ' transaksi)');
+          loadOrgCatLists(); loadMeta();
+        } catch (e) { toast(e.message, true); }
+      });
+    });
+
+    $$('[data-oncat]').forEach(function (b) {
+      b.addEventListener('click', async function () {
+        try {
+          await API.post('cats.save', { id: b.dataset.oncat, _reactivate: true });
+          toast('Aktifkan'); loadOrgCatLists(); loadMeta();
+        } catch (e) { toast(e.message, true); }
+      });
+    });
+  }
+
+  $('#o-cancel').addEventListener('click', function () {
+    editOrgId = null;
+    $('#o-nama').value = ''; $('#o-desc').value = ''; $('#o-urutan').value = '';
+    $('#o-save').textContent = 'Tambah';
+    $('#o-cancel').classList.add('hidden');
+  });
+
+  $('#c-cancel').addEventListener('click', function () {
+    editCatId = null;
+    $('#c-nama').value = '';
+    $('#c-save').textContent = 'Tambah';
+    $('#c-cancel').classList.add('hidden');
+  });
 
   $('#u-save').addEventListener('click', async function () {
     try {
@@ -429,19 +550,27 @@
 
   $('#o-save').addEventListener('click', async function () {
     try {
-      await API.post('orgs.save', { nama: $('#o-nama').value.trim(), deskripsi: $('#o-desc').value.trim() });
-      toast('Organisasi ditambahkan');
-      $('#o-nama').value = ''; $('#o-desc').value = '';
-      loadMeta();
+      const payload = {
+        nama: $('#o-nama').value.trim(),
+        deskripsi: $('#o-desc').value.trim(),
+        urutan: $('#o-urutan').value ? Number($('#o-urutan').value) : undefined
+      };
+      if (editOrgId) payload.id = editOrgId;
+      await API.post('orgs.save', payload);
+      toast(editOrgId ? 'Organisasi diperbarui' : 'Organisasi ditambahkan');
+      $('#o-cancel').click();
+      loadMeta(); loadOrgCatLists(); loadDashboard();
     } catch (e) { toast(e.message, true); }
   });
 
   $('#c-save').addEventListener('click', async function () {
     try {
-      await API.post('cats.save', { nama: $('#c-nama').value.trim(), tipe: $('#c-tipe').value });
-      toast('Kategori ditambahkan');
-      $('#c-nama').value = '';
-      loadMeta();
+      const payload = { nama: $('#c-nama').value.trim(), tipe: $('#c-tipe').value };
+      if (editCatId) payload.id = editCatId;
+      await API.post('cats.save', payload);
+      toast(editCatId ? 'Kategori diperbarui' : 'Kategori ditambahkan');
+      $('#c-cancel').click();
+      loadMeta(); loadOrgCatLists();
     } catch (e) { toast(e.message, true); }
   });
 

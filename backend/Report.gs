@@ -174,6 +174,13 @@ function saveUser_(by, p) {
 }
 
 function saveOrg_(by, p) {
+  if (p._reactivate) {
+    const cur = findById_(SH.orgs, p.id);
+    if (!cur) throw new Error('Organisasi tidak ditemukan');
+    updateRow_(SH.orgs, p.id, { aktif: true });
+    audit_(by.email, 'org.enable', cur.nama);
+    return { ok: true, data: findById_(SH.orgs, p.id) };
+  }
   if (!p.nama) throw new Error('Nama organisasi wajib diisi');
   if (p.id) {
     updateRow_(SH.orgs, p.id, { nama: p.nama, deskripsi: p.deskripsi || '', urutan: Number(p.urutan) || 0, aktif: p.aktif === false ? false : true });
@@ -187,6 +194,13 @@ function saveOrg_(by, p) {
 }
 
 function saveCat_(by, p) {
+  if (p._reactivate) {
+    const cur = findById_(SH.cats, p.id);
+    if (!cur) throw new Error('Kategori tidak ditemukan');
+    updateRow_(SH.cats, p.id, { aktif: true });
+    audit_(by.email, 'cat.enable', cur.nama);
+    return { ok: true, data: findById_(SH.cats, p.id) };
+  }
   if (!p.nama) throw new Error('Nama kategori wajib diisi');
   if (['masuk', 'keluar', 'semua'].indexOf(String(p.tipe)) === -1) throw new Error('Tipe kategori tidak valid');
   if (p.id) {
@@ -198,4 +212,34 @@ function saveCat_(by, p) {
   withLock_(function () { appendRow_(SH.cats, rec); });
   audit_(by.email, 'cat.create', rec.nama);
   return { ok: true, data: rec };
+}
+
+// Hapus organisasi. Masih dipakai transaksi -> dinonaktifkan (riwayat tetap utuh).
+function deleteOrg_(by, p) {
+  const org = findById_(SH.orgs, p.id);
+  if (!org) throw new Error('Organisasi tidak ditemukan');
+  const dipakai = readAll_(SH.tx).filter(function (t) { return String(t.org_id) === String(p.id); }).length;
+  if (dipakai > 0) {
+    updateRow_(SH.orgs, p.id, { aktif: false });
+    audit_(by.email, 'org.disable', org.nama + ' (' + dipakai + ' trx)');
+    return { ok: true, data: { mode: 'disabled', aktif: false, transaksi: dipakai, nama: org.nama } };
+  }
+  deleteRow_(SH.orgs, p.id);
+  audit_(by.email, 'org.delete', org.nama);
+  return { ok: true, data: { mode: 'deleted', aktif: true, transaksi: 0, nama: org.nama } };
+}
+
+// Hapus kategori. Masih dipakai transaksi -> dinonaktifkan.
+function deleteCat_(by, p) {
+  const cat = findById_(SH.cats, p.id);
+  if (!cat) throw new Error('Kategori tidak ditemukan');
+  const dipakai = readAll_(SH.tx).filter(function (t) { return String(t.kategori_id) === String(p.id); }).length;
+  if (dipakai > 0) {
+    updateRow_(SH.cats, p.id, { aktif: false });
+    audit_(by.email, 'cat.disable', cat.nama + ' (' + dipakai + ' trx)');
+    return { ok: true, data: { mode: 'disabled', aktif: false, transaksi: dipakai, nama: cat.nama } };
+  }
+  deleteRow_(SH.cats, p.id);
+  audit_(by.email, 'cat.delete', cat.nama);
+  return { ok: true, data: { mode: 'deleted', aktif: true, transaksi: 0, nama: cat.nama } };
 }
